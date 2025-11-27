@@ -1,0 +1,4 @@
+{
+    "OLLAMA_NGROK": "EXPIRED; USE from .env",
+    "MODEL_ID": "goekdenizguelmez/JOSIEFIED-Qwen3:30b"
+}

@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cybersecurity AI — Chat</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --panel:#0b1220;
+    --muted:#9aa6b2;
+    --accent:#6ee7b7;
+    --glass: rgba(255,255,255,0.04);
+    --bubble-user: linear-gradient(135deg,#0966b3 0%, #0ea5a6 100%);
+    --bubble-assistant: linear-gradient(135deg,#1f2937 0%, #313746 100%);
+    --glass-border: rgba(255,255,255,0.06);
+  }
+
+  html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  body{
+    background: radial-gradient(1200px 400px at 10% 10%, rgba(14,165,166,0.06), transparent),
+                radial-gradient(900px 300px at 90% 90%, rgba(16,185,129,0.03), transparent),
+                var(--bg);
+    color:#e6eef3;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    padding:28px;
+    box-sizing:border-box;
+  }
+
+  .app {
+    max-width:980px;
+    margin: 0 auto;
+    display:grid;
+    grid-template-rows: auto 1fr auto;
+    gap:18px;
+    min-height:calc(100vh - 56px);
+  }
+
+  header{
+    display:flex;align-items:center;gap:16px;
+  }
+  .logo {
+    width:54px;height:54px;border-radius:12px;
+    background: linear-gradient(135deg,#00f5a0,#00b4ff);
+    box-shadow: 0 6px 18px rgba(0,180,255,0.12), inset 0 -6px 18px rgba(255,255,255,0.05);
+    display:flex;align-items:center;justify-content:center;font-weight:700;color:#04202b;
+    font-size:18px;
+  }
+  h1{margin:0;font-size:20px}
+  p.subtitle{margin:0;color:var(--muted);font-size:13px}
+
+  /* chat panel */
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border: 1px solid var(--glass-border);
+    border-radius:14px;
+    padding:14px;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+    display:flex;flex-direction:column;
+    min-height: 520px;
+    overflow:hidden;
+  }
+
+  .messages {
+    overflow:auto;
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    scroll-behavior:smooth;
+  }
+
+  /* message bubbles */
+  .msg {
+    max-width:78%;
+    padding:12px 14px;
+    border-radius:14px;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+    position:relative;
+    word-break:break-word;
+    line-height:1.45;
+  }
+  .msg.user{
+    margin-left:auto;
+    background: var(--bubble-user);
+    color:#032027;
+    border:1px solid rgba(255,255,255,0.06);
+    transform:translateY(0);
+  }
+  .msg.assistant{
+    margin-right:auto;
+    background: var(--bubble-assistant);
+    color:#e6eef3;
+    border:1px solid rgba(255,255,255,0.03);
+  }
+
+  .meta {
+    display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--muted);
+  }
+  .avatar {
+    width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;color:#0b1220;
+  }
+  .avatar.user{ background: linear-gradient(135deg,#66b2ff,#00e6a8); }
+  .avatar.assistant{ background: linear-gradient(135deg,#94a3b8,#6b7280); color:#f8fafc; }
+
+  /* input */
+  .composer {
+    display:flex;gap:12px;align-items:center;padding-top:8px;
+  }
+  textarea.input {
+    flex:1;
+    min-height:52px;max-height:160px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    border-radius:10px;padding:12px;border:1px solid var(--glass-border);
+    color:inherit;font-size:15px;resize:none;outline:none;
+  }
+  .controls {display:flex;gap:8px;align-items:center;}
+  button.send {
+    background: linear-gradient(180deg,#00e676,#03b76d);
+    color:#052018;padding:10px 14px;border-radius:10px;border:none;font-weight:600;cursor:pointer;
+    box-shadow: 0 6px 18px rgba(3,183,109,0.14), inset 0 -3px 8px rgba(255,255,255,0.06);
+  }
+  button.send:disabled{opacity:0.5;cursor:default;transform:none}
+  .hint {font-size:13px;color:var(--muted);margin-left:8px}
+
+  /* pretty renderers */
+  pre, code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+    font-size:13px;
+  }
+  pre {
+    background: linear-gradient(180deg, #0b1220, #09121a);
+    border-radius:8px;padding:12px;overflow:auto;border:1px solid rgba(255,255,255,0.03);
+    color:#dbeafe;
+  }
+  code.inline {background: rgba(255,255,255,0.03);padding:2px 6px;border-radius:6px;}
+  blockquote{margin:10px 0;padding:10px 12px;border-left:4px solid rgba(255,255,255,0.06);color:var(--muted);background:rgba(255,255,255,0.01);border-radius:6px}
+
+  table {width:100%;border-collapse:collapse;margin-top:8px;background:rgba(255,255,255,0.01);border-radius:8px;overflow:hidden}
+  th, td {padding:10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left;font-size:14px}
+  th {background: rgba(255,255,255,0.02);font-weight:600;color:#e6eef3}
+
+  ul, ol {margin:8px 0 8px 20px}
+
+  /* loader */
+  .loader {
+    width:18px;height:18px;border-radius:50%;
+    border:3px solid rgba(255,255,255,0.06);
+    border-top-color:var(--accent);
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* small screens */
+  @media (max-width:640px){
+    .app{padding:12px}
+    .panel{min-height:420px}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">AI</div>
+      <div>
+        <h1>VulnOdin</h1>
+        <p class="subtitle">Authorized testing only</p>
+      </div>
+    </header>
+
+    <main class="panel">
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <div class="composer" style="margin-top:12px">
+        <textarea id="input" class="input" placeholder="Ask about pentesting, tools, or analysis. Shift+Enter for newline."></textarea>
+        <div class="controls">
+          <div id="status" class="hint" aria-hidden="true"></div>
+          <button id="sendBtn" class="send">Send</button>
+        </div>
+      </div>
+    </main>
+
+    <footer style="text-align:center;color:var(--muted);font-size:13px">
+      Running on local API — <span id="apiHost">http://localhost:8000/chat</span>
+    </footer>
+  </div>
+
+<script>
+(() => {
+  const API = "http://localhost:8000/chat";
+  const messagesEl = document.getElementById("messages");
+  const inputEl = document.getElementById("input");
+  const sendBtn = document.getElementById("sendBtn");
+  const statusEl = document.getElementById("status");
+  const apiHostEl = document.getElementById("apiHost");
+
+  apiHostEl.textContent = API;
+
+  let isSending = false;
+
+  // helper: timestamp
+  function nowTime() {
+    const d = new Date();
+    return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  }
+
+  // create message bubble
+  function addMessage({role='assistant', content, time=nowTime(), raw=false}) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "msg " + (role === "user" ? "user" : "assistant");
+
+    // header meta row for assistant (avatar + time) and user (time)
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar " + (role === "user" ? "user" : "assistant");
+    avatar.textContent = (role === "user" ? "U" : "A");
+    meta.appendChild(avatar);
+
+    const metaTxt = document.createElement("div");
+    metaTxt.style.display = "flex";
+    metaTxt.style.flexDirection = "column";
+    metaTxt.style.gap = "2px";
+
+    const who = document.createElement("div");
+    who.style.fontSize = "13px";
+    who.style.fontWeight = "600";
+    who.textContent = role === "user" ? "You" : "Assistant";
+    const ts = document.createElement("div");
+    ts.style.fontSize = "12px";
+    ts.style.color = "var(--muted)";
+    ts.textContent = time;
+    metaTxt.appendChild(who);
+    metaTxt.appendChild(ts);
+
+    meta.appendChild(metaTxt);
+
+    // content
+    const contentEl = document.createElement("div");
+    contentEl.style.marginTop = "8px";
+
+    if (raw) {
+      // content is already HTML
+      contentEl.innerHTML = content;
+    } else {
+      contentEl.innerHTML = escapeHtml(content).replace(/\n/g, "<br/>");
+    }
+
+    wrapper.appendChild(meta);
+    wrapper.appendChild(contentEl);
+    messagesEl.appendChild(wrapper);
+    messagesEl.scrollTop = messagesEl.scrollHeight - messagesEl.clientHeight;
+  }
+
+  // escape to avoid XSS when not raw
+  function escapeHtml(unsafe) {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  // enable Enter to send, Shift+Enter newline
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendCurrent();
+    }
+  });
+
+  sendBtn.addEventListener("click", sendCurrent);
+
+  // main send function
+  async function sendCurrent() {
+    if (isSending) return;
+    const text = inputEl.value.trim();
+    if (!text) return;
+    addMessage({role:"user", content:text});
+    inputEl.value = "";
+    inputEl.focus();
+    await callApi(text);
+  }
+
+  function showStatus(text) {
+    statusEl.innerHTML = text ? `<span style="display:inline-flex;gap:8px;align-items:center"><span class="loader"></span>${text}</span>` : "";
+  }
+
+  // format response -> HTML with tables, code, lists
+  function formatResponse(raw) {
+    if (!raw) return "<i>(empty)</i>";
+    let s = raw.replace(/\r\n/g, "\n");
+
+    // Helper: escape HTML except a whitelist of safe tags
+    function escapeHtmlSafe(input) {
+        // Allow strong, em, code, pre, ul, ol, li, table, thead, tbody, tr, th, td,
+        // blockquote, hr, h1-h6
+        return input.replace(/<(?!\/?(strong|em|code|pre|ul|ol|li|table|thead|tbody|tr|th|td|blockquote|hr|h[1-6])\b)[^>]*>/gi, m => {
+            return m.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        });
+    }
+
+    // Headings
+    s = s.replace(/^###\s+(.*)$/gm, "<h3>$1</h3>");
+    s = s.replace(/^##\s+(.*)$/gm, "<h2>$1</h2>");
+    s = s.replace(/^#\s+(.*)$/gm, "<h1>$1</h1>");
+
+    // Horizontal rules
+    s = s.replace(/^\s*---\s*$/gm, "<hr/>");
+
+    // Bold & italic
+    s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/(^|[^\*])\*([^*]+)\*/g, '$1<em>$2</em>');
+
+    // Fenced code blocks ```lang ... ```
+    s = s.replace(/```(\w+)?\n([\s\S]*?)```/g, (m, lang, code) => {
+        const escaped = escapeHtmlSafe(code.trim());
+        return `<pre><code class="lang-${lang || ''}">${escaped}</code></pre>`;
+    });
+
+    // Language label without backticks
+    s = s.replace(/(^|\n)(bash|shell|sh)\n([\s\S]*?)(?=\n{2,}|$)/gi, (m, p1, lang, code) => {
+        const escaped = escapeHtmlSafe(code.trim());
+        return `\n<pre><code class="lang-${lang.toLowerCase()}">${escaped}</code></pre>`;
+    });
+
+    // Inline code
+    s = s.replace(/`([^`\n]+)`/g, (m, c) => `<code class="inline">${escapeHtmlSafe(c)}</code>`);
+
+    // Blockquotes
+    s = s.replace(/(^|\n)>\s?(.*?)(?=\n|$)/g, (m, p1, txt) => `\n<blockquote>${escapeHtmlSafe(txt)}</blockquote>\n`);
+
+    // Table renderer (handles normal & squashed)
+    s = s.replace(/((?:\|[^\n]+\|\n?)+)/g, match => {
+        const lines = match
+            .trim()
+            .split("\n")
+            .map(l => l.trim())
+            .filter(l => /^\|.*\|$/.test(l));
+
+        if (lines.length < 2) return match;
+
+        const rows = lines.map(line => {
+            return line
+                .replace(/^\||\|$/g, "")
+                .split(/(?<!<[^>]*)\|(?![^<]*>)/) // split on | not inside tags
+                .map(c => c.trim());
+        });
+
+        const headers = rows[0];
+        const body = rows.slice(1).filter(r => !/^[-: ]+$/.test(r.join("")));
+
+        let table = "<table><thead><tr>";
+        headers.forEach(h => table += `<th>${escapeHtmlSafe(h)}</th>`);
+        table += "</tr></thead><tbody>";
+        body.forEach(r => {
+            table += "<tr>";
+            r.forEach(c => table += `<td>${escapeHtmlSafe(c)}</td>`);
+            table += "</tr>";
+        });
+        table += "</tbody></table>";
+        return table;
+    });
+
+    // Bullets
+    s = s.replace(/(^|\n)(?:\s*[-•]\s+.+(?:\n|$))+/g, match => {
+        const items = match.trim().split(/\n/).map(line => line.replace(/^\s*[-•]\s+/, "").trim()).filter(Boolean);
+        return "<ul>" + items.map(i => `<li>${escapeHtmlSafe(i)}</li>`).join("") + "</ul>";
+    });
+
+    // Numbered lists
+    s = s.replace(/(^|\n)(?:\s*\d+\.\s+.+(?:\n|$))+/g, match => {
+        const items = match.trim().split(/\n/).map(line => line.replace(/^\s*\d+\.\s+/, "").trim()).filter(Boolean);
+        return "<ol>" + items.map(i => `<li>${escapeHtmlSafe(i)}</li>`).join("") + "</ol>";
+    });
+
+    return s;
+}
+
+  
+  // main API call
+  async function callApi(text) {
+    isSending = true;
+    sendBtn.disabled = true;
+    
+    // Check if this is a scan request
+    const isScanRequest = /scan|test|check|analyze|url|http/i.test(text);
+    
+    if (isScanRequest) {
+      showStatus("Processing scan request... This may take up to 10 minutes ⏱️");
+      // Add immediate warning message
+      const warningHtml = `<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:12px;margin:8px 0">
+        <strong>⏱️ Scan Duration Notice:</strong><br/>
+        Full security scans can take up to <strong>10 minutes</strong> to complete.<br/>
+        This includes reconnaissance, vulnerability detection, and comprehensive analysis.
+      </div>`;
+      addMessage({role:"assistant", content: warningHtml, raw:true});
+    } else {
+      showStatus("Assistant is typing...");
+    }
+    
+    try {
+      const resp = await fetch(API, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({query: text, session_id: "default"})
+      });
+
+      // read raw
+      const raw = await resp.text();
+      if (!resp.ok) {
+        console.error("Server error", resp.status, raw);
+        addMessage({role:"assistant", content:`Error: server returned ${resp.status}. Make sure the API server is running.`, raw:false});
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch (e) {
+        console.error("Invalid JSON from API", raw);
+        addMessage({role:"assistant", content:"Invalid response from API (not JSON). See console for details."});
+        return;
+      }
+
+      // ensure response is string
+      let out = data.response;
+      if (typeof out !== "string") {
+        // try reasonable conversions
+        if (Array.isArray(out)) out = out.map(x => (typeof x === "string" ? x : JSON.stringify(x))).join("\n\n");
+        else out = JSON.stringify(out, null, 2);
+      }
+
+      const html = formatResponse(out);
+      addMessage({role:"assistant", content: html, raw:true});
+      
+      // Show localhost URL if available
+      if (data.localhost_url) {
+        const urlHtml = `<div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:10px;margin-top:8px">
+          ✅ <strong>Container accessible at:</strong> <a href="${data.localhost_url}" target="_blank" style="color:#10b981">${data.localhost_url}</a>
+        </div>`;
+        addMessage({role:"assistant", content: urlHtml, raw:true});
+      }
+    } catch (err) {
+      console.error("Network or JS error", err);
+      addMessage({role:"assistant", content:`⚠️ <strong>Connection Error:</strong><br/>
+        Cannot connect to the API server. Please ensure:<br/>
+        • The API server is running (<code>python api_server.py</code>)<br/>
+        • Server is accessible at ${API}<br/>
+        • Check browser console for more details.`});
+    } finally {
+      isSending = false;
+      sendBtn.disabled = false;
+      showStatus("");
+    }
+  }
+
+  // initial welcome
+  const welcomeMsg = `<strong>Welcome to RedTeam-in-a-Box! 🛡️</strong><br/><br/>
+I can help you with:<br/>
+<ul style="margin:8px 0 8px 20px;line-height:1.6">
+  <li>🔍 <strong>URL Security Scanning:</strong> Comprehensive vulnerability testing</li>
+  <li>🐳 <strong>Docker Application Testing:</strong> Automated deployment and scanning</li>
+  <li>📊 <strong>Results Analysis:</strong> Detailed security reports and recommendations</li>
+  <li>💬 <strong>Security Consultation:</strong> Ask me anything about your scans</li>
+</ul>
+<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;margin-top:12px">
+  ⏱️ <strong>Important:</strong> Full security scans can take <strong>up to 10 minutes</strong> to complete.<br/>
+  This includes reconnaissance, vulnerability detection, and comprehensive analysis.
+</div>`;
+  addMessage({role:"assistant", content: welcomeMsg, raw:true});
+})();
+</script>
+</body>
+</html>
